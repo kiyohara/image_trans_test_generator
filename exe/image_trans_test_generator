@@ -1,0 +1,229 @@
+#!/usr/bin/env ruby
+# coding: utf-8
+
+# integrate 'bundle install --standalone'
+bundle_setup_path = File.expand_path('../../bundle/bundler/setup.rb', __FILE__)
+require bundle_setup_path if File.exist?(bundle_setup_path)
+
+require_relative "../lib/image_trans_test_generator"
+
+require "thor"
+require "ltsv"
+require "json"
+
+Class.new(Thor) do
+  include ImageTransTestGenerator::Util
+
+  no_commands do
+    def dump_ltsv(obj)
+      puts ImageTransTestGenerator::ImageArray.dump_ltsv(obj)
+    end
+
+    def parse_ltsv(file)
+      res = []
+      begin
+        res = ImageTransTestGenerator::ImageArray.parse_ltsv(file)
+      rescue => e
+        error_exit(msg: e.to_s)
+      end
+      res
+    end
+
+    def _list(uri:, uniq: false, filter_has_query: false)
+      images = ImageTransTestGenerator::ImageArray.new()
+
+      begin
+        uri = URI.parse(uri)
+        doc = load_html(uri: uri)
+      rescue => e
+        error_exit(msg: "check URI parameter", debug: e)
+      end
+
+      doc.css('img').each do |img|
+        image = ImageTransTestGenerator::Image.parse(html_node: img, referer: uri)
+
+        if filter_has_query
+          puts_debug "#{image.html_src_attr} src_has_query? => #{image.src_has_query?}"
+          next if image.src_has_query?
+        end
+
+        images << image
+      end
+
+      if block_given?
+        images.select! {|item| yield(item)}
+      end
+
+      images.uniq! if uniq
+
+      images
+    end
+
+    def filter_image_list(has_query: false)
+
+    end
+  end
+
+  desc "list_images", "list up Image assets"
+  option :uri, required: true
+  option :uniq, default: false
+  option :filter_has_query, default: false
+  option :update_with_http_trans, default: false
+  def list_images
+    images = _list(
+      uri: options[:uri],
+      uniq: options[:uniq],
+      filter_has_query: options[:filter_has_query],
+    )
+
+    if options[:update_with_http_trans]
+      images.update_with_http_trans! do |image|
+        STDERR.puts "update with http trans ... #{image.html_src_attr_expanded}"
+      end
+    end
+
+    dump_ltsv(images)
+  end
+
+  desc "bulk_list_images", "list up Image assets via target URI list file"
+  option :file, required: true
+  option :uniq, default: false
+  option :filter_has_query, default: false
+  option :update_with_http_trans, default: false
+  def bulk_list_images
+    file = options[:file]
+    images = ImageTransTestGenerator::ImageArray.new
+
+    open(file) do |f|
+      while line = f.gets do
+        line.strip!
+        next if line.length == 0
+        next if line.match(/^#.*/)
+
+        STDERR.puts "check html ... #{line}"
+        images.concat(_list(
+          uri: line,
+          uniq: options[:uniq],
+          filter_has_query: options[:filter_has_query],
+        ))
+      end
+    end
+
+    images.uniq! if options[:uniq]
+
+    if options[:update_with_http_trans]
+      images.update_with_http_trans! do |image|
+        STDERR.puts "update with http trans ... #{image.html_src_attr_expanded}"
+      end
+    end
+
+    dump_ltsv(images)
+  end
+
+  desc "pickup_test_images", "pickup Image for http trans test"
+  option :file, required: true
+  option :image_size_total, type: :numeric, required: true
+  option :image_size_min, type: :numeric
+  option :image_size_max, type: :numeric
+  option :snip_domain_depth, type: :numeric, default: 0
+  def pickup_test_images
+    images = parse_ltsv(options[:file])
+
+    images.select! {|image| image.valid? }
+
+    image_size_min = options[:image_size_min].to_i
+    if image_size_min > 0
+      images.select! {|image| image.http_content_length.to_i >= image_size_min }
+    end
+
+    image_size_max = options[:image_size_max].to_i
+    if image_size_max > 0
+      images.select! {|image| image.http_content_length.to_i <= image_size_max }
+    end
+
+    image_size_total = options[:image_size_total].to_i
+    pickuped_images = ImageTransTestGenerator::ImageArray.new()
+
+    # filters
+    sc_matrix = {}
+    domain_matrix = {}
+
+    # pickup w/ scheme/content_type filter
+    STDERR.puts "* pickup w/ scheme/content_type filter"
+    images.dup.each do |image| # !! dup !!
+      crr_image_size_total = pickuped_images.http_content_length_total
+      next if crr_image_size_total + image.http_content_length.to_i > image_size_total
+
+      scheme = image.src_uri_scheme.downcase
+      domain = image.src_uri_domain(depth: options[:snip_domain_depth]).downcase
+      content_type = "#{image.http_content_type}".downcase
+
+      sc_matrix[scheme] = {} if sc_matrix[scheme].nil?
+      next unless sc_matrix[scheme][content_type].nil?
+
+      sc_matrix[scheme][content_type] = true
+      domain_matrix[domain] = true
+
+      STDERR.puts "pick ... #{image.html_src_attr_expanded} (#{scheme} + #{content_type})"
+      pickuped_images << image
+      images.delete(image) # !! delete !!
+    end
+
+    puts_debug("scheme/content_type matrix => #{sc_matrix}")
+
+    # pickup w/ domain filter
+    STDERR.puts "* pickup w/ domain filter"
+    images.dup.each do |image| # !! dup !!
+      crr_image_size_total = pickuped_images.http_content_length_total
+      next if crr_image_size_total + image.http_content_length.to_i > image_size_total
+
+      domain = image.src_uri_domain(depth: options[:snip_domain_depth]).downcase
+
+      next unless domain_matrix[domain].nil?
+
+      domain_matrix[domain] = true
+
+      STDERR.puts "pick ... #{image.html_src_attr_expanded} (#{domain})"
+      pickuped_images << image
+      images.delete(image) # !! delete !!
+    end
+
+    puts_debug("domain_matrix => #{domain_matrix}")
+
+    # pickup random
+    STDERR.puts "* pickup random"
+    images.shuffle.each do |image| # !! shuffle !!
+      crr_image_size_total = pickuped_images.http_content_length_total
+      next if crr_image_size_total + image.http_content_length.to_i > image_size_total
+
+      STDERR.puts "pick ... #{image.html_src_attr_expanded}"
+      pickuped_images << image
+    end
+
+    # create result
+    res_image_list = []
+    pickuped_images.each do |image|
+      res_image_list << {
+        url: image.html_src_attr_expanded,
+        referer: image.referer,
+        size: image.http_content_length.to_i,
+      }
+    end
+
+    fs = File::Stat.new(options[:file])
+    res_hash = {
+      list: res_image_list,
+      size: pickuped_images.http_content_length_total,
+      created_at: Time.now,
+      seed_file: {
+        name: options[:file],
+        updated_at: fs.mtime,
+      }
+    }
+
+    puts JSON.dump(res_hash)
+  end
+
+  # default_command :list_images
+end.start(ARGV)
+
