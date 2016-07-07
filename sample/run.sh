@@ -11,13 +11,13 @@ if [ ! -e $URI_LIST ];then
 fi
 echo '**' $URI_LIST handling ...
 
-# ../exe/image_trans_test_generator bulk_list_images \
-#   --file $URI_LIST \
-#   --uniq \
-#   --filter_has_query \
-#   --update_with_http_trans \
-#   > _list.ltsv \
-#   &&
+../exe/image_trans_test_generator bulk_list_images \
+  --file $URI_LIST \
+  --uniq \
+  --filter_has_query \
+  --update_with_http_trans \
+  > _list.ltsv \
+  &&
 
 ../exe/image_trans_test_generator pickup_test_images \
   --file _list.ltsv \
