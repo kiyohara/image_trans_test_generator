@@ -57,7 +57,7 @@ $ ../exe/image_trans_test_generator pickup_test_images \
 ```
 
 | option | desc |
-|--|--|
+|:--|:--|
 | `--image_size_total`  | total size limit(byte) of image picked up      |
 | `--image_size_max`    | upper size limit(byte) of each image picked up |
 | `--image_size_min`    | lower size limit(byte) of each image picked up |
@@ -67,7 +67,7 @@ $ ../exe/image_trans_test_generator pickup_test_images \
 this tool grouping images by snipped domain in internal.
 
 | original image domain   | `--snip_domain_depth 3` | `--snip_domain_depth 2` |
-|--|--|
+|:--|:--|:--|
 | `hoge.fuga.example.com` | `fuga.example.com`      | `example.com`           |
 | `example.com`           | `example.com`           | `example.com`           |
 
