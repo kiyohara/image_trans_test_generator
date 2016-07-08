@@ -1,36 +1,70 @@
 # ImageTransTestGenerator
 
-Welcome to your new gem! In this directory, you'll find the files you need to be able to package up your Ruby library into a gem. Put your Ruby code in the file `lib/image_trans_test_generator`. To experiment with that code, run `bin/console` for an interactive prompt.
-
-TODO: Delete this and the text above, and describe your gem
+Image URI listup tool for HTTP transport quality test.
 
 ## Installation
 
 Add this line to your application's Gemfile:
 
 ```ruby
-gem 'image_trans_test_generator'
+source 'https://rubygems.org'
+
+gem 'image_trans_test_generator', github: 'kiyohara/image_trans_test_generator'
 ```
 
 And then execute:
 
     $ bundle
 
-Or install it yourself as:
-
-    $ gem install image_trans_test_generator
-
 ## Usage
 
-TODO: Write usage instructions here
+1. create Site URL list
 
-## Development
 
-After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake spec` to run the tests. You can also run `bin/console` for an interactive prompt that will allow you to experiment.
+    $ vim site_url_list.txt
 
-To install this gem onto your local machine, run `bundle exec rake install`. To release a new version, update the version number in `version.rb`, and then run `bundle exec rake release`, which will create a git tag for the version, push git commits and tags, and push the `.gem` file to [rubygems.org](https://rubygems.org).
+```
+https://www.google.co.jp/
+http://www.yahoo.co.jp/
+https://www.youtube.com/
+http://www.amazon.co.jp/
+https://www.google.com/
+```
+
+2. list up Image URL from `<img>` tags `src` attribute in above sites)
+
+
+    $ bundle exec image_trans_test_generator bulk_list_images \
+      --file site_url_list.txt \
+      --uniq \
+      --filter_has_query \
+      --update_with_http_trans \
+      > image_url_list.ltsv
+
+3. pickup Image URL above image list file
+
+
+    $ ../exe/image_trans_test_generator pickup_test_images \
+      --file image_url_list.ltsv \
+      --image_size_total 2000000 \
+      --image_size_min     10000 \
+      --image_size_max    500000 \
+      --snip_domain_depth 2
+
+| option | desc |
+|--|--|
+| `--image_size_total`  | total size limit(byte) of image picked up      |
+| `--image_size_max`    | upper size limit(byte) of each image picked up |
+| `--image_size_min`    | lower size limit(byte) of each image picked up |
+| `--snip_domain_depth` | domain snipping depth from TLD (†)            |
+
+† snipped domain is information used to pickup image.
+this tool grouping images by snipped domain in internal.
+
+| original image domain   | `--snip_domain_depth 3` | `--snip_domain_depth 2` |
+|--|--|
+| `hoge.fuga.example.com` | `fuga.example.com`      | `example.com`           |
 
 ## Contributing
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/[USERNAME]/image_trans_test_generator.
-
+Bug reports and pull requests are welcome on GitHub at https://github.com/kiyohara/image_trans_test_generator.
