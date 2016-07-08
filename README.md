@@ -48,7 +48,7 @@ $ bundle exec image_trans_test_generator bulk_list_images \
 3. pickup Image URL above image list file
 
 ``` console
-$ ../exe/image_trans_test_generator pickup_test_images \
+$ bundle exec image_trans_test_generator pickup_test_images \
   --file image_url_list.ltsv \
   --image_size_total 2000000 \
   --image_size_min     10000 \
