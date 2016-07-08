@@ -14,14 +14,17 @@ gem 'image_trans_test_generator', github: 'kiyohara/image_trans_test_generator'
 
 And then execute:
 
-    $ bundle
+```console
+$ bundle
+```
 
 ## Usage
 
 1. create Site URL list
 
-
-    $ vim site_url_list.txt
+```console
+$ vim site_url_list.txt
+```
 
 ```
 https://www.google.co.jp/
@@ -33,23 +36,25 @@ https://www.google.com/
 
 2. list up Image URL from `<img>` tags `src` attribute in above sites)
 
-
-    $ bundle exec image_trans_test_generator bulk_list_images \
-      --file site_url_list.txt \
-      --uniq \
-      --filter_has_query \
-      --update_with_http_trans \
-      > image_url_list.ltsv
+```console
+$ bundle exec image_trans_test_generator bulk_list_images \
+  --file site_url_list.txt \
+  --uniq \
+  --filter_has_query \
+  --update_with_http_trans \
+  > image_url_list.ltsv
+```
 
 3. pickup Image URL above image list file
 
-
-    $ ../exe/image_trans_test_generator pickup_test_images \
-      --file image_url_list.ltsv \
-      --image_size_total 2000000 \
-      --image_size_min     10000 \
-      --image_size_max    500000 \
-      --snip_domain_depth 2
+``` console
+$ ../exe/image_trans_test_generator pickup_test_images \
+  --file image_url_list.ltsv \
+  --image_size_total 2000000 \
+  --image_size_min     10000 \
+  --image_size_max    500000 \
+  --snip_domain_depth 2
+```
 
 | option | desc |
 |--|--|
@@ -64,6 +69,7 @@ this tool grouping images by snipped domain in internal.
 | original image domain   | `--snip_domain_depth 3` | `--snip_domain_depth 2` |
 |--|--|
 | `hoge.fuga.example.com` | `fuga.example.com`      | `example.com`           |
+| `example.com`           | `example.com`           | `example.com`           |
 
 ## Contributing
 
